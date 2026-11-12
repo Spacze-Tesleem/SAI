@@ -26,13 +26,12 @@ import { PaymentContextProvider } from "./payment-context";
 import { ThemeContextProvider } from "./theme-context";
 import { UserContextProvider } from "./user-context";
 import { getURLHash, isWebsiteSlug } from "./utils";
-// Import the minimal login HTML template at build time
-import minimalLoginHtml from "./minimal-login.html";
+import { getOnaLoginUrl } from "./minimal-mode";
 
 const MINIMAL_MODE_OVERRIDE_KEY = "minimal_gitpod_io_mode";
 
 /**
- * Check if the pathname is a known app route that should show the minimal login page
+ * Check if the pathname is a known app route that should be handed off to Ona.
  */
 function isAppRoute(pathname: string): boolean {
     const appRoutes = [
@@ -80,8 +79,8 @@ function isAppRoute(pathname: string): boolean {
 }
 
 /**
- * Handle requests in minimal gitpod.io mode.
- * This runs instead of the full React app when minimal mode is enabled.
+ * Hand off requests in minimal Gitpod/Ona mode to the hosted Ona app.
+ * This runs instead of the API-dependent React app on static deployments.
  */
 function handleMinimalGitpodIoMode(): void {
     const pathname = window.location.pathname;
@@ -112,45 +111,15 @@ function handleMinimalGitpodIoMode(): void {
         return;
     }
 
-    // 4. App routes -> render minimal login page
-    if (isAppRoute(pathname)) {
-        renderMinimalLoginPage();
+    // 4. App routes and root -> use the real hosted login/dashboard, not the static marketing splash
+    if (isAppRoute(pathname) || pathname === "/" || pathname === "") {
+        const onaLoginUrl = getOnaLoginUrl(pathname, search, hash);
+        window.location.replace(onaLoginUrl);
         return;
     }
 
-    // 5. Root path -> render minimal login page
-    if (pathname === "/" || pathname === "") {
-        renderMinimalLoginPage();
-        return;
-    }
-
-    // 6. Unknown paths -> www.gitpod.io (let website handle 404)
+    // 5. Unknown paths -> www.gitpod.io (let website handle 404)
     window.location.href = `https://www.gitpod.io${pathname}${search}`;
-}
-
-/**
- * Extract body content from a full HTML document string.
- * This allows keeping the complete HTML structure in the source file for easier editing.
- */
-function extractBodyContent(html: string): string {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, "text/html");
-    return doc.body.innerHTML;
-}
-
-/**
- * Render a minimal static login page without React.
- * Uses innerHTML instead of document.write() to avoid deprecation issues.
- */
-function renderMinimalLoginPage(): void {
-    const bodyContent = extractBodyContent(minimalLoginHtml);
-    const root = document.getElementById("root");
-    if (root) {
-        root.innerHTML = bodyContent;
-    } else {
-        // Fallback if root doesn't exist
-        document.body.innerHTML = bodyContent;
-    }
 }
 
 /**
