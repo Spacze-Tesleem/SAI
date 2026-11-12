@@ -46,11 +46,6 @@ module.exports = {
                             fullySpecified: false,
                         },
                     },
-                    {
-                        // Import HTML files as raw strings (for minimal-login.html)
-                        test: /minimal-login\.html$/,
-                        type: "asset/source",
-                    },
                 ],
             },
             plugins: [

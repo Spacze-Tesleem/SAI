@@ -16,7 +16,7 @@ The Gitpod app expects its platform API environment. It is not a self-contained 
 
 ## Vercel build
 
-The Vercel build runs `scripts/build-vercel.sh`, which compiles the Gitpod protocol and public API TypeScript workspaces in the same order as the dashboard's `BUILD.yaml`. Because Vercel serves static files and does not run the Gitpod API or WebSocket services, this build enables `REACT_APP_GITPOD_MINIMAL_MODE`. The Vercel site renders the static Gitpod/Ona sign-in page and directs users to the hosted app instead of leaving the full dashboard waiting for a backend that is not deployed here.
+The Vercel build runs `scripts/build-vercel.sh`, which compiles the Gitpod protocol and public API TypeScript workspaces in the same order as the dashboard's `BUILD.yaml`. Because Vercel serves static files and does not run the Gitpod API or WebSocket services, the build enables `REACT_APP_GITPOD_MINIMAL_MODE`. Requests to the dashboard root and app routes are handed directly to Ona's hosted sign-in/dashboard, preserving the requested route after sign-in where possible. This avoids showing a static promotional splash or booting a dashboard that would wait for an API backend Vercel does not host.
 
 ## SAI prototype — Supabase persistence (optional)
 
