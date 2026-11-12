@@ -12,4 +12,6 @@ yarn workspace @gitpod/gitpod-protocol build
 yarn workspace @gitpod/public-api build
 yarn workspace @gitpod/public-api-common build
 
-yarn --cwd components/dashboard build
+# This static deployment has no Gitpod API/WebSocket backend. Render the minimal
+# entry point so users are sent to the hosted Ona app instead of loading forever.
+REACT_APP_GITPOD_MINIMAL_MODE=true yarn --cwd components/dashboard build

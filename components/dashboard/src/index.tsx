@@ -214,11 +214,12 @@ function isExactGitpodIo(): boolean {
  * Main boot function
  *
  * Minimal mode is enabled when:
+ * - REACT_APP_GITPOD_MINIMAL_MODE is "true" for static deployments without Gitpod APIs
  * - localStorage override is "true" (for testing in preview environments)
  * - Host is exactly "gitpod.io" AND path is not a website slug
  */
 const bootApp = () => {
-    let minimalMode = false;
+    let minimalMode = process.env.REACT_APP_GITPOD_MINIMAL_MODE === "true";
 
     // Handle website slugs on gitpod.io - redirect to www.gitpod.io
     if (isExactGitpodIo()) {
