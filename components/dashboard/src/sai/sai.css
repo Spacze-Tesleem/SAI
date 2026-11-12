@@ -388,6 +388,11 @@ button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px s
 .org-create-note { display: flex; align-items: flex-start; gap: 8px; padding: 10px; border: 1px solid #ebe7fb; border-radius: 8px; color: var(--text-secondary); background: #faf9ff; font-size: 9px; line-height: 1.45; }
 .org-create-note svg { flex: 0 0 auto; color: #8065e5; }
 .sai-loading { width: 100%; height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 15px; color: #78849a; background: #f5f7fa; font-size: 11px; }
+.sai-load-error { padding: 24px; text-align: center; }
+.sai-load-error h1 { max-width: 620px; margin: 6px 0 0; color: #18243a; font: 700 22px Manrope, sans-serif; }
+.sai-load-error p { max-width: 620px; margin: 0; line-height: 1.7; }
+.sai-load-error p[role="alert"] { color: #ad3750; }
+.sai-load-error .sai-load-help { color: #78849a; }
 .sai-loading-mark { width: 46px; height: 46px; display: grid; place-items: center; border-radius: 15px; color: #fff; background: linear-gradient(140deg, #8a70f2, #6347d4); box-shadow: 0 8px 22px rgba(111, 83, 222, .25); font: 800 23px Manrope, sans-serif; animation: loading-breathe 1.4s ease-in-out infinite; }
 @keyframes loading-breathe { 50% { transform: scale(.94); opacity: .8; } }
 .mobile-scrim { display: none; }
