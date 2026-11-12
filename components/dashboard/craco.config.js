@@ -3,7 +3,6 @@
  * Licensed under the GNU Affero General Public License (AGPL).
  * See License.AGPL.txt in the project root for license information.
  */
-const { when } = require("@craco/craco");
 const path = require("path");
 const webpack = require("webpack");
 
@@ -71,27 +70,16 @@ module.exports = {
         },
     },
     devServer: {
+        host: "0.0.0.0",
+        allowedHosts: "all",
         client: {
-            webSocketURL: {
-                hostname: process.env.HMR_HOST ? new URL(process.env.HMR_HOST).hostname : "localhost",
-                port: process.env.HMR_HOST ? 443 : 3001,
-                protocol: "wss",
-            },
+            webSocketURL: process.env.HMR_HOST
+                ? {
+                      hostname: new URL(process.env.HMR_HOST).hostname,
+                      port: 443,
+                      protocol: "wss",
+                  }
+                : "auto://0.0.0.0:0/ws",
         },
     },
-    ...when(process.env.GP_DEV_HOST && process.env.GP_DEV_COOKIE, () => ({
-        devServer: {
-            proxy: {
-                "/api": {
-                    target: "https://" + process.env.GP_DEV_HOST,
-                    ws: true,
-                    headers: {
-                        host: process.env.GP_DEV_HOST,
-                        origin: "https://" + process.env.GP_DEV_HOST,
-                        cookie: process.env.GP_DEV_COOKIE,
-                    },
-                },
-            },
-        },
-    })),
 };
