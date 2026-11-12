@@ -4,6 +4,8 @@
  * See License.AGPL.txt in the project root for license information.
  */
 
+import { getSupabaseUserId, supabaseClient, supabaseConfigurationError } from "./supabase";
+
 export type WorkspaceStatus = "running" | "stopped";
 
 export interface WorkspaceRecord {
@@ -127,33 +129,37 @@ function clone<T>(value: T): T {
     return JSON.parse(JSON.stringify(value)) as T;
 }
 
-function readState(): PlatformState {
+function normalizeState(value: unknown): PlatformState {
+    const parsed = value && typeof value === "object" ? (value as Partial<PlatformState>) : {};
+    return {
+        ...clone(starterState),
+        ...parsed,
+        workspaces: Array.isArray(parsed.workspaces) ? parsed.workspaces : clone(starterState.workspaces),
+        repositories: Array.isArray(parsed.repositories) ? parsed.repositories : clone(starterState.repositories),
+        organizations: Array.isArray(parsed.organizations) ? parsed.organizations : clone(starterState.organizations),
+        activeOrganizationId:
+            typeof parsed.activeOrganizationId === "string"
+                ? parsed.activeOrganizationId
+                : starterState.activeOrganizationId,
+        settings: { ...starterState.settings, ...parsed.settings },
+    };
+}
+
+function readLocalState(): PlatformState {
     try {
         const saved = window.localStorage.getItem(STORAGE_KEY);
         if (saved) {
-            const parsed = JSON.parse(saved) as Partial<PlatformState>;
-            return {
-                ...clone(starterState),
-                ...parsed,
-                workspaces: Array.isArray(parsed.workspaces) ? parsed.workspaces : clone(starterState.workspaces),
-                repositories: Array.isArray(parsed.repositories)
-                    ? parsed.repositories
-                    : clone(starterState.repositories),
-                organizations: Array.isArray(parsed.organizations)
-                    ? parsed.organizations
-                    : clone(starterState.organizations),
-                settings: { ...starterState.settings, ...parsed.settings },
-            };
+            return normalizeState(JSON.parse(saved));
         }
     } catch {
         // A blocked or malformed local-storage value should never prevent the demo from opening.
     }
     const initial = clone(starterState);
-    persist(initial);
+    persistLocalState(initial);
     return initial;
 }
 
-function persist(state: PlatformState): void {
+function persistLocalState(state: PlatformState): void {
     try {
         window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     } catch {
@@ -161,13 +167,109 @@ function persist(state: PlatformState): void {
     }
 }
 
-async function snapshot(): Promise<PlatformState> {
-    await new Promise((resolve) => window.setTimeout(resolve, 90));
-    return clone(readState());
+function clearLegacyLocalState(): void {
+    try {
+        window.localStorage.removeItem(STORAGE_KEY);
+    } catch {
+        // Local storage is optional once Supabase is the source of truth.
+    }
 }
 
-function saveAndReturn(state: PlatformState): Promise<PlatformState> {
-    persist(state);
+function throwDatabaseError(action: string, error: { code?: string; message: string }): never {
+    const message = error.message.toLowerCase();
+    const tableMissing =
+        error.code === "42P01" ||
+        error.code === "PGRST205" ||
+        (message.includes("sai_platform_state") &&
+            (message.includes("does not exist") || message.includes("could not find")));
+    if (tableMissing) {
+        throw new Error(
+            "The Supabase table is missing. Apply the migration at components/dashboard/supabase/migrations before using the cloud database.",
+        );
+    }
+    if (error.code === "42501") {
+        throw new Error(
+            "Supabase blocked this request. Apply the SAI RLS policies and ensure Anonymous Sign-Ins are enabled.",
+        );
+    }
+    throw new Error(`Supabase ${action} failed: ${error.message}`);
+}
+
+async function readSupabaseState(): Promise<PlatformState> {
+    if (supabaseConfigurationError) {
+        throw new Error(supabaseConfigurationError);
+    }
+    if (!supabaseClient) {
+        return readLocalState();
+    }
+
+    const userId = await getSupabaseUserId();
+    const { data, error } = await supabaseClient
+        .from("sai_platform_state")
+        .select("state")
+        .eq("user_id", userId)
+        .maybeSingle();
+    if (error) {
+        throwDatabaseError("read", error);
+    }
+    if (data?.state) {
+        clearLegacyLocalState();
+        return normalizeState(data.state);
+    }
+
+    // Migrate any existing browser demo data into this anonymous user's private row on first use.
+    const initial = readLocalState();
+    await writeSupabaseState(userId, initial);
+    clearLegacyLocalState();
+    return initial;
+}
+
+async function writeSupabaseState(userId: string, state: PlatformState): Promise<void> {
+    if (!supabaseClient) {
+        throw new Error("Supabase is not configured.");
+    }
+    const { error } = await supabaseClient.from("sai_platform_state").upsert(
+        {
+            user_id: userId,
+            state: normalizeState(state),
+            updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id" },
+    );
+    if (error) {
+        throwDatabaseError("save", error);
+    }
+}
+
+async function readStateForMutation(): Promise<PlatformState> {
+    if (supabaseConfigurationError) {
+        throw new Error(supabaseConfigurationError);
+    }
+    return supabaseClient ? readSupabaseState() : readLocalState();
+}
+
+async function snapshot(): Promise<PlatformState> {
+    if (supabaseConfigurationError) {
+        throw new Error(supabaseConfigurationError);
+    }
+    if (supabaseClient) {
+        return clone(await readSupabaseState());
+    }
+    await new Promise((resolve) => window.setTimeout(resolve, 90));
+    return clone(readLocalState());
+}
+
+async function saveAndReturn(state: PlatformState): Promise<PlatformState> {
+    if (supabaseConfigurationError) {
+        throw new Error(supabaseConfigurationError);
+    }
+    if (supabaseClient) {
+        const userId = await getSupabaseUserId();
+        const normalized = normalizeState(state);
+        await writeSupabaseState(userId, normalized);
+        return clone(normalized);
+    }
+    persistLocalState(state);
     return snapshot();
 }
 
@@ -202,7 +304,7 @@ export async function createWorkspace(input: {
     branch?: string;
     machine?: string;
 }): Promise<PlatformState> {
-    const state = readState();
+    const state = await readStateForMutation();
     const repositoryUrl = normalizeRepositoryUrl(input.repository);
     const repositoryName = slugFromRepository(repositoryUrl);
     const existing = state.repositories.find(
@@ -235,7 +337,7 @@ export async function createWorkspace(input: {
 }
 
 export async function setWorkspaceStatus(id: string, status: WorkspaceStatus): Promise<PlatformState> {
-    const state = readState();
+    const state = await readStateForMutation();
     state.workspaces = state.workspaces.map((workspace) =>
         workspace.id === id ? { ...workspace, status, updatedAt: new Date().toISOString() } : workspace,
     );
@@ -243,7 +345,7 @@ export async function setWorkspaceStatus(id: string, status: WorkspaceStatus): P
 }
 
 export async function deleteWorkspace(id: string): Promise<PlatformState> {
-    const state = readState();
+    const state = await readStateForMutation();
     state.workspaces = state.workspaces.filter((workspace) => workspace.id !== id);
     return saveAndReturn(state);
 }
@@ -254,7 +356,7 @@ export async function createRepository(input: {
     branch?: string;
     visibility: "Private" | "Public";
 }): Promise<PlatformState> {
-    const state = readState();
+    const state = await readStateForMutation();
     const normalizedUrl = normalizeRepositoryUrl(input.url);
     state.repositories.unshift({
         id: makeId("repo"),
@@ -268,7 +370,7 @@ export async function createRepository(input: {
 }
 
 export async function deleteRepository(id: string): Promise<PlatformState> {
-    const state = readState();
+    const state = await readStateForMutation();
     const linkedWorkspaceIds = new Set(
         state.workspaces.filter((workspace) => workspace.repositoryId === id).map((workspace) => workspace.id),
     );
@@ -278,7 +380,7 @@ export async function deleteRepository(id: string): Promise<PlatformState> {
 }
 
 export async function createOrganization(name: string): Promise<PlatformState> {
-    const state = readState();
+    const state = await readStateForMutation();
     const slug =
         name
             .trim()
@@ -298,7 +400,7 @@ export async function createOrganization(name: string): Promise<PlatformState> {
 }
 
 export async function setActiveOrganization(id: string): Promise<PlatformState> {
-    const state = readState();
+    const state = await readStateForMutation();
     if (state.organizations.some((organization) => organization.id === id)) {
         state.activeOrganizationId = id;
     }
@@ -306,12 +408,11 @@ export async function setActiveOrganization(id: string): Promise<PlatformState> 
 }
 
 export async function updateSettings(settings: Partial<PlatformSettings>): Promise<PlatformState> {
-    const state = readState();
+    const state = await readStateForMutation();
     state.settings = { ...state.settings, ...settings };
     return saveAndReturn(state);
 }
 
 export async function resetPlatformState(): Promise<PlatformState> {
-    const state = clone(starterState);
-    return saveAndReturn(state);
+    return saveAndReturn(clone(starterState));
 }

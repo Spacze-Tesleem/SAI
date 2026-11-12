@@ -65,6 +65,7 @@ import {
     requestOpenRouterEmbedding,
     verifyOpenRouterKey,
 } from "./openrouter";
+import { isSupabaseConfigured } from "./supabase";
 
 const pageDetails = {
     overview: { title: "Overview", eyebrow: "YOUR CLOUD WORKSPACE" },
@@ -590,7 +591,9 @@ function RepositoryPage({
             </section>
             <div className="notice-strip">
                 <ShieldCheck size={16} />
-                <span>Repository access is managed locally in this demo. No credentials are sent anywhere.</span>
+                <span>
+                    Repository URLs are stored with your SAI platform data. No Git credentials are requested or stored.
+                </span>
             </div>
         </>
     );
@@ -1155,10 +1158,12 @@ function SettingsPage({
     settings,
     onUpdate,
     onReset,
+    cloudStorageEnabled,
 }: {
     settings: PlatformSettings;
     onUpdate: (settings: Partial<PlatformSettings>) => void;
     onReset: () => void;
+    cloudStorageEnabled: boolean;
 }) {
     const editors: PlatformSettings["editor"][] = ["VS Code", "Cursor", "JetBrains"];
     const machines: PlatformSettings["machine"][] = ["Standard · 4 vCPU", "Performance · 8 vCPU", "GPU · 16 vCPU"];
@@ -1167,7 +1172,11 @@ function SettingsPage({
             <PageHeading
                 eyebrow={pageDetails.settings.eyebrow}
                 title="Make it yours"
-                subtitle="Set up SAI the way you like to work. Changes are saved on this device."
+                subtitle={
+                    cloudStorageEnabled
+                        ? "Set up SAI the way you like to work. Changes are saved to your Supabase profile."
+                        : "Set up SAI the way you like to work. Changes are saved in this browser."
+                }
             />
             <div className="settings-layout">
                 <div className="settings-main">
@@ -1273,8 +1282,12 @@ function SettingsPage({
                     </section>
                     <section className="settings-danger-zone">
                         <div>
-                            <strong>Reset demo data</strong>
-                            <p>Restore the sample workspaces and preferences on this device.</p>
+                            <strong>{cloudStorageEnabled ? "Reset platform data" : "Reset demo data"}</strong>
+                            <p>
+                                {cloudStorageEnabled
+                                    ? "Restore starter workspaces and preferences in your Supabase profile."
+                                    : "Restore the sample workspaces and preferences on this device."}
+                            </p>
                         </div>
                         <button className="button button-danger" onClick={onReset}>
                             Reset data
@@ -1287,15 +1300,16 @@ function SettingsPage({
                     </div>
                     <h3>Your settings stay yours.</h3>
                     <p>
-                        This standalone SAI demo stores your preferences in this browser only. Nothing is synced to a
-                        remote service.
+                        {cloudStorageEnabled
+                            ? "Your SAI platform state is stored in Supabase and isolated by your Auth user. This anonymous session belongs to this browser profile."
+                            : "This standalone SAI demo stores your preferences in this browser only. Nothing is synced to a remote service."}
                     </p>
                     <div className="settings-aside-rule" />
                     <span>
                         <Check size={14} /> Saved automatically
                     </span>
                     <span>
-                        <Check size={14} /> Stored on this device
+                        <Check size={14} /> {cloudStorageEnabled ? "Stored in Supabase" : "Stored on this device"}
                     </span>
                 </aside>
             </div>
@@ -1508,7 +1522,7 @@ function CreateRepositoryModal({
                         }}
                         placeholder="https://github.com/you/project"
                     />
-                    <small>Repository data is saved locally in this demo.</small>
+                    <small>Only the repository URL and settings are saved; no Git credentials are stored.</small>
                 </label>
                 <div className="form-row">
                     <label>
@@ -1593,6 +1607,8 @@ function SaiPlatform() {
     const location = useLocation();
     const page = pageFromPath(location.pathname);
     const [platform, setPlatform] = useState<PlatformState>();
+    const [loadError, setLoadError] = useState("");
+    const [loadAttempts, setLoadAttempts] = useState(0);
     const [dialog, setDialog] = useState<DialogKind>(null);
     const [workspaceRepository, setWorkspaceRepository] = useState<string>();
     const [query, setQuery] = useState("");
@@ -1612,13 +1628,22 @@ function SaiPlatform() {
     useEffect(() => {
         document.title = "SAI — Cloud Dev Platform";
         let mounted = true;
-        getPlatformState().then((result) => {
-            if (mounted) setPlatform(result);
-        });
+        getPlatformState()
+            .then((result) => {
+                if (mounted) {
+                    setPlatform(result);
+                    setLoadError("");
+                }
+            })
+            .catch((error) => {
+                if (mounted) {
+                    setLoadError(error instanceof Error ? error.message : "Could not load your SAI platform data.");
+                }
+            });
         return () => {
             mounted = false;
         };
-    }, []);
+    }, [loadAttempts]);
 
     useEffect(() => {
         if (!toast) return;
@@ -1631,8 +1656,8 @@ function SaiPlatform() {
             const next = await operation();
             setPlatform(next);
             if (message) setToast(message);
-        } catch {
-            setToast("That didn't work. Please try again.");
+        } catch (error) {
+            setToast(error instanceof Error ? error.message : "That didn't work. Please try again.");
         }
     }, []);
 
@@ -1742,6 +1767,31 @@ function SaiPlatform() {
         history.push("/workspaces");
     };
 
+    if (!platform && loadError) {
+        return (
+            <div className="sai-loading sai-load-error">
+                <div className="sai-loading-mark">S</div>
+                <h1>SAI couldn’t load your platform data</h1>
+                <p role="alert">{loadError}</p>
+                {isSupabaseConfigured && (
+                    <p className="sai-load-help">
+                        Check the project URL and public key, apply the SAI database migration, and enable Anonymous
+                        Sign-Ins in Supabase Auth.
+                    </p>
+                )}
+                <button
+                    className="button button-primary"
+                    onClick={() => {
+                        setLoadError("");
+                        setLoadAttempts((attempts) => attempts + 1);
+                    }}
+                >
+                    Try again
+                </button>
+            </div>
+        );
+    }
+
     if (!platform) {
         return (
             <div className="sai-loading">
@@ -1752,8 +1802,11 @@ function SaiPlatform() {
     }
 
     const handleReset = () => {
-        if (window.confirm("Reset workspaces, repositories, organizations and preferences to the starter demo?")) {
-            void mutate(resetPlatformState, "Demo data restored.");
+        const prompt = isSupabaseConfigured
+            ? "Reset your SAI workspaces, repositories, organizations and preferences to starter data?"
+            : "Reset workspaces, repositories, organizations and preferences to the starter demo?";
+        if (window.confirm(prompt)) {
+            void mutate(resetPlatformState, "Starter data restored.");
         }
     };
 
@@ -1775,7 +1828,10 @@ function SaiPlatform() {
                         <strong>SAI</strong>
                         <small>CLOUD PLATFORM</small>
                     </div>
-                    <span className="brand-status" title="Local demo" />
+                    <span
+                        className="brand-status"
+                        title={isSupabaseConfigured ? "Supabase configured" : "Local browser storage"}
+                    />
                 </div>
                 <div className="org-switcher-wrap">
                     <label className="side-label" htmlFor="org-switcher">
@@ -1825,31 +1881,48 @@ function SaiPlatform() {
                 <div className="sidebar-bottom">
                     <button
                         className="sidebar-help"
-                        onClick={() => setToast("SAI demo mode is running locally in your browser.")}
+                        onClick={() =>
+                            setToast(
+                                isSupabaseConfigured
+                                    ? "Platform state is stored in your Supabase Auth profile."
+                                    : "SAI is using local browser storage. Configure Supabase to enable remote persistence.",
+                            )
+                        }
                     >
                         <span className="help-icon">?</span>
                         <span>
                             <strong>Need a hand?</strong>
-                            <small>You're in local demo mode</small>
+                            <small>
+                                {isSupabaseConfigured ? "Supabase storage is configured" : "You're in local demo mode"}
+                            </small>
                         </span>
                         <ArrowUpRight size={14} />
                     </button>
                     <div className="sidebar-user">
-                        <div className="user-avatar">ST</div>
+                        <div className="user-avatar">{isSupabaseConfigured ? "SA" : "ST"}</div>
                         <div className="user-details">
-                            <strong>Spacze Tesleem</strong>
-                            <small>Workspace owner</small>
+                            <strong>{isSupabaseConfigured ? "SAI profile" : "Spacze Tesleem"}</strong>
+                            <small>{isSupabaseConfigured ? "Anonymous session" : "Workspace owner"}</small>
                         </div>
                         <button
                             className="icon-button sidebar-user-menu"
                             aria-label="User menu"
-                            onClick={() => setToast("Signed in as Spacze Tesleem.")}
+                            onClick={() =>
+                                setToast(
+                                    isSupabaseConfigured
+                                        ? "Using an anonymous Supabase Auth session for this browser profile."
+                                        : "Signed in as Spacze Tesleem.",
+                                )
+                            }
                         >
                             <MoreHorizontal size={18} />
                         </button>
                     </div>
                     <div className="sidebar-local">
-                        <span className="local-status-dot" /> Local demo <span>·</span> Data stays here
+                        <span className="local-status-dot" />
+                        {isSupabaseConfigured ? "Supabase" : "Local demo"}
+                        <span>·</span>
+                        {isSupabaseConfigured ? "Remote database" : "Data stays here"}
                     </div>
                 </div>
             </aside>
@@ -1972,12 +2045,15 @@ function SaiPlatform() {
                             settings={platform.settings}
                             onUpdate={(settings) => void mutate(() => updateSettings(settings))}
                             onReset={handleReset}
+                            cloudStorageEnabled={isSupabaseConfigured}
                         />
                     )}
                     <footer className="page-footer">
                         <span>SAI Cloud Dev Platform</span>
                         <span>Personal cloud, built around you.</span>
-                        <span className="footer-version">DEMO · LOCAL STORAGE</span>
+                        <span className="footer-version">
+                            {isSupabaseConfigured ? "SUPABASE · REMOTE STORAGE" : "DEMO · LOCAL STORAGE"}
+                        </span>
                     </footer>
                 </div>
             </main>
