@@ -1,21 +1,21 @@
-# SAI Cloud Dev Platform
+**[Gitpod has been renamed to Ona](https://ona.com/stories/gitpod-is-now-ona) - mission control for software projects and software engineering agents**. We no longer recommend this version of Gitpod; users should take advantage of Ona's [free tier](https://app.gitpod.io/) or [contact sales for enterprise](https://ona.com/enterprise). With Ona you gain more powerful development environments than Gitpod Classic with industry-standard specifications based on Dev Container and Ona Agents.
 
-SAI is a cloud development platform experience for organizing development workspaces, repositories, organizations, personal preferences, and AI tools.
+![Ona Banner](https://github.com/user-attachments/assets/68f8c148-07da-4831-a6f6-ff4d1f1ec321)
 
-## Standalone dashboard
+## Gitpod Classic
 
-The dashboard is rebranded for SAI and runs as an independent React app. It works locally without a SAI account, remote platform service, or Kubernetes cluster. By default, workspace and preference data is kept in browser `localStorage`; you can optionally configure Supabase for per-user remote persistence.
+Gitpod Classic is a developer platform providing on-demand, pre-configured development environments in the cloud. It allows developers to spin up secure workspaces with a simple `.gitpod.yml` configuration file, eliminating the need for manual environment setup. The platform integrates with GitHub, GitLab, Bitbucket, and Azure DevOps, offering prebuilt environments, collaborative code reviews, and a browser-based VS Code experience.
 
-```sh
-yarn install
-yarn --cwd components/dashboard start
-```
+> **Important:** [Gitpod Classic pay-as-you-go sunset on October 15, 2025](https://ona.com/stories/gitpod-classic-payg-sunset). See Ona's blog for detailed instructions.
 
-Open the development server on port `3000`. The UI supports managing workspaces and repositories, switching or creating organizations, updating settings, and using OpenRouter models in AI Studio. Supabase setup, anonymous-session limitations, and the browser-only fallback are documented in [`components/dashboard/README.md`](components/dashboard/README.md). OpenRouter keys remain in tab memory only.
+The dashboard entrypoint remains the original Gitpod application. A separate SAI prototype is retained under `components/dashboard/src/sai`; it is not mounted as the default interface. Prototype-specific Supabase and OpenRouter notes are in [`components/dashboard/README.md`](components/dashboard/README.md).
 
-## Project layout
+## Documentation
 
--   `components/dashboard` — SAI Cloud Dev Platform web app, optional Supabase persistence, and OpenRouter integration.
--   Other `components/` packages — supporting protocol, API, and infrastructure code retained in this repository. They are not required to run the standalone dashboard preview.
+Gitpod documentation is available at [www.gitpod.io/docs](https://www.gitpod.io/docs), including the [Gitpod tutorial](https://www.gitpod.io/docs/introduction/gitpod-tutorial), workspace lifecycle, repository configuration, organizations, editors, and [Gitpod samples](https://github.com/gitpod-samples).
 
-All work on this branch is scoped to the `Spacze-Tesleem/SAI` repository.
+## Related projects
+
+- [Workspace images](https://github.com/gitpod-io/workspace-images): Ready-to-use Docker images for Gitpod workspaces.
+- [OpenVSCode Server](https://github.com/gitpod-io/openvscode-server): Run VS Code in a browser.
+- [Gitpod browser extension](https://github.com/gitpod-io/browser-extension): Add a Gitpod button to Git hosting providers.
