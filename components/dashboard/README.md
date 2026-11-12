@@ -14,6 +14,10 @@ yarn --cwd components/dashboard start
 
 The Gitpod app expects its platform API environment. It is not a self-contained frontend deployment.
 
+## Vercel build
+
+The Vercel build runs `scripts/build-vercel.sh` before the dashboard build. It compiles the Gitpod protocol and public API TypeScript workspaces in the same order as the dashboard's `BUILD.yaml`, because a normal Yarn workspace install links those packages but does not generate their `lib/` outputs. This fixes build-time module resolution only; it does not deploy or provide the Gitpod platform APIs required at runtime.
+
 ## SAI prototype — Supabase persistence (optional)
 
 The v1 integration stores the complete platform snapshot in `public.sai_platform_state`, with one JSONB row per Supabase Auth user. Workspace, repository, organization, and settings changes use this row. Row-level security compares `user_id` with `auth.uid()`; the browser can read or change only its own row. This whole-snapshot design is intentionally simple for v1: simultaneous edits from multiple tabs can be last-write-wins. The UI's organizations are currently personal groupings, not shared team accounts.
