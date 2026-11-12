@@ -16,7 +16,7 @@ The Gitpod app expects its platform API environment. It is not a self-contained 
 
 ## Vercel build
 
-The Vercel build runs `scripts/build-vercel.sh` before the dashboard build. It compiles the Gitpod protocol and public API TypeScript workspaces in the same order as the dashboard's `BUILD.yaml`, because a normal Yarn workspace install links those packages but does not generate their `lib/` outputs. This fixes build-time module resolution only; it does not deploy or provide the Gitpod platform APIs required at runtime.
+The Vercel build runs `scripts/build-vercel.sh`, which compiles the Gitpod protocol and public API TypeScript workspaces in the same order as the dashboard's `BUILD.yaml`. Because Vercel serves static files and does not run the Gitpod API or WebSocket services, this build enables `REACT_APP_GITPOD_MINIMAL_MODE`. The Vercel site renders the static Gitpod/Ona sign-in page and directs users to the hosted app instead of leaving the full dashboard waiting for a backend that is not deployed here.
 
 ## SAI prototype — Supabase persistence (optional)
 
