@@ -28,8 +28,7 @@
     "useUnknownInCatchVariables": false
   },
   "include": [
-    "src/index.tsx",
-    "src/sai/**/*",
-    "src/react-app-env.d.ts"
+    "src",
+    "ee/src"
   ]
 }

@@ -1,18 +1,20 @@
-# SAI Cloud Dev Platform
+# Gitpod Dashboard
 
-A standalone SAI workspace dashboard built with React and TypeScript. It opens directly into an interactive overview with workspace, repository, organization, settings, and AI Studio screens. Supabase persistence is optional; without Supabase configuration, the local demo stores platform state in this browser.
+The default application is Gitpod's original TypeScript and React dashboard. `src/index.tsx` initializes the Gitpod metrics, router, providers, and `RootAppRouter` from `src/App.tsx`. Its pages rely on the Gitpod platform APIs and services.
+
+The SAI prototype remains isolated under `src/sai/`; it is not mounted by the default Gitpod entrypoint. The Supabase and OpenRouter sections below document that prototype only and do not change the Gitpod dashboard's behavior.
 
 ## Run locally
 
-From the repository root:
+From the repository root, in a Gitpod workspace with the `gp` CLI available:
 
 ```sh
 yarn --cwd components/dashboard start
 ```
 
-The development server binds to `0.0.0.0` and serves the app on port `3000` by default. Hot reload works in local and proxied preview environments.
+The Gitpod app expects its platform API environment. It is not a self-contained frontend deployment.
 
-## Supabase persistence (optional)
+## SAI prototype — Supabase persistence (optional)
 
 The v1 integration stores the complete platform snapshot in `public.sai_platform_state`, with one JSONB row per Supabase Auth user. Workspace, repository, organization, and settings changes use this row. Row-level security compares `user_id` with `auth.uid()`; the browser can read or change only its own row. This whole-snapshot design is intentionally simple for v1: simultaneous edits from multiple tabs can be last-write-wins. The UI's organizations are currently personal groupings, not shared team accounts.
 

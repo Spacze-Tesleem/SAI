@@ -1,5 +1,5 @@
 {
-  "name": "@sai/cloud-platform",
+  "name": "@gitpod/dashboard",
   "license": "UNLICENSED",
   "version": "0.0.0",
   "private": true,
@@ -105,8 +105,8 @@
     "web-vitals": "^1.1.1"
   },
   "scripts": {
-    "start": "BROWSER=none craco start --host 0.0.0.0",
-    "start-local": "BROWSER=none craco start --host 0.0.0.0",
+    "start": "BROWSER=none HMR_HOST=`gp url 3001` craco start",
+    "start-local": "gp ports visibility 3000:public; BROWSER=none HMR_HOST=`gp url 3000` ASSET_PATH=`gp url 3000` craco start",
     "build": "craco build --verbose",
     "lint": "eslint --max-warnings=0 --ext=.jsx,.js,.tsx,.ts ./src",
     "test": "yarn test:unit",
