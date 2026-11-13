@@ -12,6 +12,6 @@ yarn workspace @gitpod/gitpod-protocol build
 yarn workspace @gitpod/public-api build
 yarn workspace @gitpod/public-api-common build
 
-# Vercel serves the standalone SAI application. The legacy Gitpod dashboard
-# depends on platform API/WebSocket services that are not deployed here.
-REACT_APP_SAI_MODE=true yarn --cwd components/dashboard build
+# Vercel is static and has no Gitpod API/WebSocket backend. Hand app routes
+# off to the hosted Ona dashboard instead of booting the legacy Gitpod app.
+REACT_APP_GITPOD_MINIMAL_MODE=true yarn --cwd components/dashboard build

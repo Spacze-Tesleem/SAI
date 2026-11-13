@@ -4,28 +4,28 @@
  * See License.AGPL.txt in the project root for license information.
  */
 
-import { getOnaLoginUrl } from "./minimal-mode";
+import { getOnaDashboardUrl } from "./minimal-mode";
 
 describe("static Gitpod/Ona handoff", () => {
-    it("sends the root page straight to the hosted Ona sign-in", () => {
-        expect(getOnaLoginUrl("/", "", "")).toBe("https://app.ona.com/login");
+    it("opens Ona's AI dashboard from the static site's root", () => {
+        expect(getOnaDashboardUrl("/", "", "")).toBe("https://app.gitpod.io/ai");
     });
 
-    it("does not add a return target when the requested page is already login", () => {
-        expect(getOnaLoginUrl("/login", "", "")).toBe("https://app.ona.com/login");
+    it("sends the legacy login route to the AI dashboard", () => {
+        expect(getOnaDashboardUrl("/login", "", "")).toBe("https://app.gitpod.io/ai");
     });
 
-    it("preserves an app route as a relative return target after sign-in", () => {
-        const target = new URL(getOnaLoginUrl("/workspaces", "?filter=active", ""));
-
-        expect(target.origin).toBe("https://app.ona.com");
-        expect(target.pathname).toBe("/login");
-        expect(target.searchParams.get("returnTo")).toBe("/workspaces?filter=active");
+    it("preserves supported app routes and query strings", () => {
+        expect(getOnaDashboardUrl("/ai", "?tab=sessions", "")).toBe("https://app.gitpod.io/ai?tab=sessions");
     });
 
-    it("keeps route fragments safely inside the return target", () => {
-        const target = new URL(getOnaLoginUrl("/settings", "", "#profile"));
+    it("keeps route fragments on the Ona origin", () => {
+        expect(getOnaDashboardUrl("/ai", "", "#sessions")).toBe("https://app.gitpod.io/ai#sessions");
+    });
 
-        expect(target.searchParams.get("returnTo")).toBe("/settings#profile");
+    it("does not allow protocol-relative paths to change the destination host", () => {
+        expect(getOnaDashboardUrl("//attacker.example/path", "", "")).toBe("https://app.gitpod.io/ai");
+        const backslashPath = `/${String.fromCharCode(92)}attacker.example/path`;
+        expect(getOnaDashboardUrl(backslashPath, "", "")).toBe("https://app.gitpod.io/ai");
     });
 });
