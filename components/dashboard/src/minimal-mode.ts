@@ -4,20 +4,20 @@
  * See License.AGPL.txt in the project root for license information.
  */
 
-const ONA_LOGIN_URL = "https://app.ona.com/login";
+const ONA_APP_URL = "https://app.gitpod.io";
 
 /**
- * Build the hosted Ona sign-in URL for a route coming from the static Vercel site.
- * Keep the requested app route as a relative return target so Ona can send the user
- * back there after authentication without forwarding an external URL.
+ * Resolve a static-site app route to the hosted Ona app.
+ * Root and the legacy Gitpod login URL go to Ona's AI dashboard. Ona handles
+ * authentication itself and returns signed-out users to the requested route.
  */
-export function getOnaLoginUrl(pathname: string, search: string, hash: string): string {
-    const loginUrl = new URL(ONA_LOGIN_URL);
-    const returnTo = `${pathname}${search}${hash}`;
-
-    if (returnTo !== "/" && returnTo !== "" && pathname !== "/login") {
-        loginUrl.searchParams.set("returnTo", returnTo);
-    }
-
-    return loginUrl.toString();
+export function getOnaDashboardUrl(pathname: string, search: string, hash: string): string {
+    const requestedPath = pathname === "/" || pathname === "" || pathname === "/login" ? "/ai" : pathname;
+    const hasProtocolRelativePrefix = requestedPath.startsWith("//") || requestedPath.startsWith("/\\");
+    const safePath = requestedPath.startsWith("/") && !hasProtocolRelativePrefix ? requestedPath : "/ai";
+    const destination = new URL(ONA_APP_URL);
+    destination.pathname = safePath;
+    destination.search = search;
+    destination.hash = hash;
+    return destination.toString();
 }
