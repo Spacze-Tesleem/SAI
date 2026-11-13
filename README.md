@@ -8,7 +8,7 @@ Gitpod Classic is a developer platform providing on-demand, pre-configured devel
 
 > **Important:** [Gitpod Classic pay-as-you-go sunset on October 15, 2025](https://ona.com/stories/gitpod-classic-payg-sunset). See Ona's blog for detailed instructions.
 
-The dashboard entrypoint remains the original Gitpod application. A separate SAI prototype is retained under `components/dashboard/src/sai`; it is not mounted as the default interface. Prototype-specific Supabase and OpenRouter notes are in [`components/dashboard/README.md`](components/dashboard/README.md).
+Gitpod-capable builds retain the original Gitpod dashboard entrypoint. The static Vercel deployment instead boots the standalone SAI application under `components/dashboard/src/sai`, because Vercel does not provide Gitpod's platform API or WebSocket services. SAI-specific Supabase and OpenRouter setup is documented in [`components/dashboard/README.md`](components/dashboard/README.md).
 
 ## Documentation
 

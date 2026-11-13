@@ -123,6 +123,33 @@ function handleMinimalGitpodIoMode(): void {
 }
 
 /**
+ * Boot the standalone SAI application used by static Vercel deployments.
+ * Unlike the Gitpod dashboard, this app does not request a Gitpod platform API.
+ */
+function bootSaiApp(): void {
+    document.title = "SAI — Cloud Dev Platform";
+    document.querySelector('meta[name="description"]')?.setAttribute(
+        "content",
+        "SAI Cloud Dev Platform for managing workspaces, repositories, organizations, and settings.",
+    );
+
+    void Promise.all([import("./sai/SaiApp"), import("./sai/sai.css")])
+        .then(([saiModule]) => {
+            const root = document.getElementById("root");
+            if (root) {
+                const SaiApp = saiModule.default;
+                ReactDOM.render(<SaiApp />, root);
+            }
+        })
+        .catch(() => {
+            const root = document.getElementById("root");
+            if (!root) return;
+            root.innerHTML = `<main style="font-family:system-ui,sans-serif;max-width:600px;margin:15vh auto;padding:24px;color:#152036"><h1>SAI couldn’t start</h1><p>Please check your connection and reload the page.</p><button type="button">Reload SAI</button></main>`;
+            root.querySelector("button")?.addEventListener("click", () => window.location.reload());
+        });
+}
+
+/**
  * Boot the full React application
  */
 function bootFullApp(): void {
@@ -188,6 +215,13 @@ function isExactGitpodIo(): boolean {
  * - Host is exactly "gitpod.io" AND path is not a website slug
  */
 const bootApp = () => {
+    // The Vercel project is SAI, not an Ona entry point. Keep this check ahead of
+    // Gitpod minimal-mode routing so static SAI builds never leave this origin.
+    if (process.env.REACT_APP_SAI_MODE === "true") {
+        bootSaiApp();
+        return;
+    }
+
     let minimalMode = process.env.REACT_APP_GITPOD_MINIMAL_MODE === "true";
 
     // Handle website slugs on gitpod.io - redirect to www.gitpod.io

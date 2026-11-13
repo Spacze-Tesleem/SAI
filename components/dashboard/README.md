@@ -2,7 +2,7 @@
 
 The default application is Gitpod's original TypeScript and React dashboard. `src/index.tsx` initializes the Gitpod metrics, router, providers, and `RootAppRouter` from `src/App.tsx`. Its pages rely on the Gitpod platform APIs and services.
 
-The SAI prototype remains isolated under `src/sai/`; it is not mounted by the default Gitpod entrypoint. The Supabase and OpenRouter sections below document that prototype only and do not change the Gitpod dashboard's behavior.
+The SAI application lives under `src/sai/`. Full Gitpod-capable builds keep the original Gitpod dashboard as their entrypoint; the static Vercel build selects SAI because Vercel does not provide the Gitpod platform APIs or WebSocket services. SAI uses local browser storage by default and can use Supabase when configured.
 
 ## Run locally
 
@@ -16,7 +16,7 @@ The Gitpod app expects its platform API environment. It is not a self-contained 
 
 ## Vercel build
 
-The Vercel build runs `scripts/build-vercel.sh`, which compiles the Gitpod protocol and public API TypeScript workspaces in the same order as the dashboard's `BUILD.yaml`. Because Vercel serves static files and does not run the Gitpod API or WebSocket services, the build enables `REACT_APP_GITPOD_MINIMAL_MODE`. Requests to the dashboard root and app routes are handed directly to Ona's hosted sign-in/dashboard, preserving the requested route after sign-in where possible. This avoids showing a static promotional splash or booting a dashboard that would wait for an API backend Vercel does not host.
+The Vercel build runs `scripts/build-vercel.sh`, which compiles the Gitpod protocol and public API TypeScript workspaces in the same order as the dashboard's `BUILD.yaml`, then sets `REACT_APP_SAI_MODE=true`. This boots the SAI application on the static site instead of starting the Gitpod dashboard or redirecting visitors to Ona. The legacy Gitpod dashboard remains the default for Gitpod-capable builds.
 
 ## SAI prototype — Supabase persistence (optional)
 
