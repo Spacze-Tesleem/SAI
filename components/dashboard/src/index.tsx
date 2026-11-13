@@ -4,220 +4,72 @@
  * See License.AGPL.txt in the project root for license information.
  */
 
-// this should stay at the top to enable monitoring as soon as possible
-import "./service/metrics";
-
-import "setimmediate"; // important!, required by vscode-jsonrpc
-import dayjs from "dayjs";
-import duration from "dayjs/plugin/duration";
-import relativeTime from "dayjs/plugin/relativeTime";
-import utc from "dayjs/plugin/utc";
 import React from "react";
 import ReactDOM from "react-dom";
-import { BrowserRouter } from "react-router-dom";
-import { RootAppRouter } from "./App";
-import { QueryErrorBoundary } from "./components/error-boundaries/QueryErrorBoundary";
-import { ReloadPageErrorBoundary } from "./components/error-boundaries/ReloadPageErrorBoundary";
-import { ToastContextProvider } from "./components/toasts/Toasts";
-import { ConfettiContextProvider } from "./contexts/ConfettiContext";
-import { setupQueryClientProvider } from "./data/setup";
-import "./index.css";
-import { PaymentContextProvider } from "./payment-context";
-import { ThemeContextProvider } from "./theme-context";
-import { UserContextProvider } from "./user-context";
-import { getURLHash, isWebsiteSlug } from "./utils";
-import { getOnaDashboardUrl } from "./minimal-mode";
 
-const MINIMAL_MODE_OVERRIDE_KEY = "minimal_gitpod_io_mode";
+const STANDALONE_MODE_OVERRIDE_KEY = "sai_standalone_mode";
 
 /**
- * Check if the pathname is a known app route that should be handed off to Ona.
+ * Boot SAI's standalone dashboard. Static deployments use this path and load
+ * only SAI's product UI, without requiring Gitpod APIs or WebSocket services.
  */
-function isAppRoute(pathname: string): boolean {
-    const appRoutes = [
-        "/workspaces",
-        "/new",
-        "/start",
-        "/settings",
-        "/billing",
-        "/members",
-        "/sso",
-        "/orgs",
-        "/repositories",
-        "/prebuilds",
-        "/admin",
-        "/login",
-        "/oauth-approval",
-        "/blocked",
-        "/from-referrer",
-        "/usage",
-        "/insights",
-        "/org-admin",
-        "/quickstart",
-        "/ai",
-        // Legacy routes that redirect in full app
-        "/account",
-        "/integrations",
-        "/notifications",
-        "/preferences",
-        "/variables",
-        "/tokens",
-        "/keys",
-        "/open",
-        "/sorry",
-        "/t/",
-        "/projects/",
-        "/user/",
-        "/access-control",
-        "/old-team-plans",
-        "/teams",
-        "/subscription",
-        "/upgrade-subscription",
-        "/plans",
-    ];
+function bootSaiStandaloneApp(): void {
+    const root = document.getElementById("root");
+    if (!root) return;
 
-    return appRoutes.some((route) => pathname === route || pathname.startsWith(route + "/"));
+    void import("./sai/SaiApp")
+        .then(({ default: SaiApp }) => {
+            ReactDOM.render(
+                <React.StrictMode>
+                    <SaiApp />
+                </React.StrictMode>,
+                root,
+            );
+        })
+        .catch((error: unknown) => {
+            // Make a failed static chunk load actionable rather than presenting a blank page.
+            // eslint-disable-next-line no-console
+            console.error("Could not load the SAI standalone dashboard.", error);
+            root.textContent = "SAI could not load. Refresh the page to try again.";
+        });
 }
 
 /**
- * Hand off requests in minimal Gitpod/Ona mode to the hosted Ona app.
- * This runs instead of the API-dependent React app on static deployments.
+ * Boot the API-dependent legacy application only in builds that need it.
  */
-function handleMinimalGitpodIoMode(): void {
-    const pathname = window.location.pathname;
-    const search = window.location.search;
-    const hash = window.location.hash;
-    const hashContent = hash.replace(/^#\/?/, "");
-
-    // 1. Website slugs -> www.gitpod.io
-    if (isWebsiteSlug(pathname)) {
-        window.location.href = `https://www.gitpod.io${pathname}${search}`;
-        return;
-    }
-
-    // 2. Hash-based workspace creation -> app.ona.com
-    if (hashContent !== "") {
-        // Normalize github.dev to github.com first
-        let normalizedHash = hash;
-        if (/^#\/?((https:\/\/)?github\.dev\/)/i.test(hash)) {
-            normalizedHash = hash.replace(/github\.dev\//gi, "github.com/");
-        }
-        window.location.href = `https://app.ona.com/${normalizedHash}`;
-        return;
-    }
-
-    // 3. Legacy URL formats (/github.com/..., /gitlab.com/..., /bitbucket.org/...)
-    if (/^\/(github|gitlab|bitbucket)\.(com|org)\//.test(pathname)) {
-        window.location.href = `https://app.ona.com/#${pathname.slice(1)}${search}`;
-        return;
-    }
-
-    // 4. App routes and root -> hand off to the hosted Ona app.
-    // The root and old login route open Ona's AI dashboard; Ona handles auth and returns to /ai.
-    if (isAppRoute(pathname) || pathname === "/" || pathname === "") {
-        const onaDashboardUrl = getOnaDashboardUrl(pathname, search, hash);
-        window.location.replace(onaDashboardUrl);
-        return;
-    }
-
-    // 5. Unknown paths -> www.gitpod.io (let website handle 404)
-    window.location.href = `https://www.gitpod.io${pathname}${search}`;
+function bootLegacyApp(): void {
+    void import("./legacy-entry")
+        .then(({ bootLegacyApp: boot }) => boot())
+        .catch((error: unknown) => {
+            // eslint-disable-next-line no-console
+            console.error("Could not load the legacy dashboard.", error);
+            const root = document.getElementById("root");
+            if (root) root.textContent = "The dashboard could not load. Refresh the page to try again.";
+        });
 }
 
 /**
- * Boot the full React application
- */
-function bootFullApp(): void {
-    // Normalize github.dev urls to github.com
-    const hash = getURLHash();
-    if (/^(https:\/\/)?github\.dev\//i.test(hash)) {
-        window.location.hash = hash.replace(/^(https:\/\/)?github\.dev\//i, "https://github.com/");
-    } else if (/^([^/]+?=[^/]*?|prebuild)\/(https:\/\/)?github\.dev\//i.test(hash)) {
-        window.location.hash = hash.replace(
-            /^([^/]+?=[^/]*?|prebuild)\/(https:\/\/)?github\.dev\//i,
-            "$1/https://github.com/",
-        );
-    }
-
-    const GitpodQueryClientProvider = setupQueryClientProvider();
-
-    // Configure libraries
-    dayjs.extend(relativeTime);
-    dayjs.extend(utc);
-    dayjs.extend(duration);
-
-    // Render the App
-    ReactDOM.render(
-        <React.StrictMode>
-            <ThemeContextProvider>
-                <ReloadPageErrorBoundary>
-                    <BrowserRouter>
-                        <GitpodQueryClientProvider>
-                            {/* This needs to be inside of the GitpodQueryClientProvider so it can reset queries if needed */}
-                            <QueryErrorBoundary>
-                                <ConfettiContextProvider>
-                                    <ToastContextProvider>
-                                        <UserContextProvider>
-                                            <PaymentContextProvider>
-                                                <RootAppRouter />
-                                            </PaymentContextProvider>
-                                        </UserContextProvider>
-                                    </ToastContextProvider>
-                                </ConfettiContextProvider>
-                            </QueryErrorBoundary>
-                        </GitpodQueryClientProvider>
-                    </BrowserRouter>
-                </ReloadPageErrorBoundary>
-            </ThemeContextProvider>
-        </React.StrictMode>,
-        document.getElementById("root"),
-    );
-}
-
-/**
- * Check if this is exactlly gitpod.io
- */
-function isExactGitpodIo(): boolean {
-    return window.location.hostname === "gitpod.io";
-}
-
-/**
- * Main boot function
- *
- * Minimal mode is enabled when:
- * - REACT_APP_GITPOD_MINIMAL_MODE is "true" for static deployments without Gitpod APIs
- * - localStorage override is "true" (for testing in preview environments)
- * - Host is exactly "gitpod.io" AND path is not a website slug
+ * Static SAI builds don't have the Gitpod API; Gitpod-capable builds retain the
+ * existing dashboard. The local override is useful for testing the standalone
+ * experience without changing a build.
  */
 const bootApp = () => {
-    let minimalMode = process.env.REACT_APP_GITPOD_MINIMAL_MODE === "true";
+    let standaloneMode = process.env.REACT_APP_SAI_STATIC_MODE === "true";
 
-    // Handle website slugs on gitpod.io - redirect to www.gitpod.io
-    if (isExactGitpodIo()) {
-        const pathname = window.location.pathname;
-        if (isWebsiteSlug(pathname)) {
-            window.location.href = `https://www.gitpod.io${pathname}${window.location.search}`;
-            return;
-        }
-        minimalMode = true;
-    }
-
-    // Check local storage override
     try {
-        if (localStorage.getItem(MINIMAL_MODE_OVERRIDE_KEY) === "true") {
-            minimalMode = true;
+        if (localStorage.getItem(STANDALONE_MODE_OVERRIDE_KEY) === "true") {
+            standaloneMode = true;
         }
     } catch {
-        // localStorage might not be available
+        // localStorage might be disabled; the build-time setting still works.
     }
 
-    if (minimalMode) {
-        handleMinimalGitpodIoMode();
+    if (standaloneMode) {
+        bootSaiStandaloneApp();
         return;
     }
 
-    // Boot full React app
-    bootFullApp();
+    bootLegacyApp();
 };
 
 bootApp();

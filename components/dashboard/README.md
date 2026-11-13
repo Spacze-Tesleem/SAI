@@ -1,26 +1,32 @@
-# Gitpod Dashboard
+# SAI Dashboard
 
-The default application is Gitpod's original TypeScript and React dashboard. `src/index.tsx` initializes the Gitpod metrics, router, providers, and `RootAppRouter` from `src/App.tsx`. Its pages rely on the Gitpod platform APIs and services.
-
-The SAI prototype lives under `src/sai/` and is documented below. Full Gitpod-capable builds keep the original Gitpod dashboard as their entrypoint. The Vercel static site hands dashboard routes to Ona's hosted app because Vercel does not provide Gitpod's platform APIs or WebSocket services.
+SAI's product UI is in `src/sai/`. Static deployments boot this standalone SAI dashboard; they do not hand users to a hosted Gitpod/Ona application. The repository also retains the API-dependent legacy dashboard, which is still used when building without the standalone SAI mode.
 
 ## Run locally
 
-From the repository root, in a Gitpod workspace with the `gp` CLI available:
+From the repository root, in a Gitpod-capable development environment with the `gp` CLI available:
 
 ```sh
+# Standalone SAI experience
+REACT_APP_SAI_STATIC_MODE=true yarn --cwd components/dashboard start
+
+# Legacy API-dependent dashboard
 yarn --cwd components/dashboard start
 ```
 
-The Gitpod app expects its platform API environment. It is not a self-contained frontend deployment.
+The standalone SAI UI can load without Gitpod APIs. The regular legacy dashboard still expects its platform APIs and services.
 
 ## Vercel build
 
-The Vercel build runs `scripts/build-vercel.sh`, which compiles the Gitpod protocol and public API TypeScript workspaces in the same order as the dashboard's `BUILD.yaml`, then enables `REACT_APP_GITPOD_MINIMAL_MODE`. The static site's root and legacy login route open Ona's AI dashboard at `https://app.gitpod.io/ai`; Ona handles authentication and returns signed-out users to that page. Existing workspace-hash links are forwarded to the hosted app. The legacy Gitpod dashboard remains the default for Gitpod-capable builds.
+The Vercel build runs `scripts/build-vercel.sh`, which compiles the Gitpod protocol and public API TypeScript workspaces needed by the dashboard build, then sets `REACT_APP_SAI_STATIC_MODE=true`. The static site serves SAI's own Home, Projects, Automations, Insights, Sessions, Workspaces, and AI Studio pages. It uses browser storage and the optional Supabase configuration described below; it does not redirect to Gitpod or Ona.
 
-## SAI prototype — Supabase persistence (optional)
+## Product scope
 
-The v1 integration stores the complete platform snapshot in `public.sai_platform_state`, with one JSONB row per Supabase Auth user. Workspace, repository, organization, and settings changes use this row. Row-level security compares `user_id` with `auth.uid()`; the browser can read or change only its own row. This whole-snapshot design is intentionally simple for v1: simultaneous edits from multiple tabs can be last-write-wins. The UI's organizations are currently personal groupings, not shared team accounts.
+The Home composer records a session draft with its prompt, selected project/repository, branch, model, Agent or Plan mode, and preferred compute size. Drafts are saved to this browser's `localStorage` under `sai.agent-sessions.v1`. This is a local prototype: the draft does not clone code, provision a cloud environment, or execute an AI agent. The workspace list also currently represents local platform state rather than running infrastructure. Secure repository authorization, cloud provisioning, and an agent runtime still need to be implemented.
+
+## Supabase persistence (optional)
+
+The v1 integration stores the platform snapshot in `public.sai_platform_state`, with one JSONB row per Supabase Auth user. Workspace, repository, organization, and settings changes use this row. Row-level security compares `user_id` with `auth.uid()`; the browser can read or change only its own row. This whole-snapshot design is intentionally simple for v1: simultaneous edits from multiple tabs can be last-write-wins. The UI's organizations are currently personal groupings, not shared team accounts. **Agent-session drafts are separate and remain in browser storage.**
 
 1. Create a Supabase project.
 2. In the Supabase SQL Editor, run [`supabase/migrations/20261112000000_create_sai_platform_state.sql`](supabase/migrations/20261112000000_create_sai_platform_state.sql) to create the table, grants, and RLS policies.
@@ -37,17 +43,17 @@ The initial integration uses a separate anonymous Auth identity for each browser
 
 ## Local demo data and platform scope
 
-Without Supabase configuration, the mock API in `src/sai/local-api.ts` seeds sample SAI projects and stores workspace, repository, organization, and preference changes in this browser's `localStorage`. With Supabase configured, those changes are stored remotely as described above. Use **Settings → Reset demo data** to restore the starter state.
+Without Supabase configuration, the mock API in `src/sai/local-api.ts` seeds sample SAI projects and stores workspace, repository, organization, and preference changes in this browser's `localStorage`. With Supabase configured, those changes are stored remotely as described above. Use **Settings → Reset data** to restore the starter state. Resetting platform data does not currently remove agent-session drafts.
 
-This is not a cloud compute service: workspace actions update SAI platform state and do not provision machines or clone repositories. Repository URLs are metadata only; no Git credentials are requested or stored. Organization membership and invitations are not backed by shared-access tables yet.
+Repository URLs are metadata only; no Git credentials are requested or stored. Organization membership and invitations are not backed by shared-access tables yet.
 
 ## OpenRouter AI Studio
 
 Open **AI Studio** in the sidebar to use the configured OpenRouter models:
 
--   Poolside — `poolside/laguna-s-2.1` (standard model; usage may be billed)
--   NVIDIA — `nvidia/llama-nemotron-embed-vl-1b-v2` (embeddings)
--   Cohere — `cohere/north-mini-code:free`
--   Perplexity — `perplexity/pplx-decider-flash-v1.3:free`
+- Poolside — `poolside/laguna-s-2.1` (standard model; usage may be billed)
+- NVIDIA — `nvidia/llama-nemotron-embed-vl-1b-v2` (embeddings)
+- Cohere — `cohere/north-mini-code:free`
+- Perplexity — `perplexity/pplx-decider-flash-v1.3:free`
 
 Paste your own OpenRouter API key in the AI Studio panel and verify it. The key is kept only in JavaScript memory for the current browser tab; SAI does not save it to local or session storage. Chat prompts and embedding inputs are sent directly from the browser to OpenRouter, and then handled by the selected model provider. Review OpenRouter/provider policies before sending private code or other sensitive data. Free-tier models can have usage limits; paid model usage may incur charges. For a production deployment, use an authenticated server-side proxy instead of exposing a key in browser code.

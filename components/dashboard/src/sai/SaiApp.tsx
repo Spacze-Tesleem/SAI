@@ -65,12 +65,32 @@ import {
     requestOpenRouterEmbedding,
     verifyOpenRouterKey,
 } from "./openrouter";
+import "./sai.css";
 import { isSupabaseConfigured } from "./supabase";
+import { AgentHome } from "./AgentHome";
+import {
+    AutomationsPage as AgentAutomationsPage,
+    InsightsPage as AgentInsightsPage,
+    AgentSessionPage,
+    AgentSessionsPage,
+} from "./AgentPages";
+import {
+    AgentSession,
+    AgentSessionDraft,
+    createAgentSession,
+    readAgentSessions,
+    saveAgentSessions,
+} from "./agent-sessions";
 
 const pageDetails = {
-    overview: { title: "Overview", eyebrow: "YOUR CLOUD WORKSPACE" },
+    home: { title: "Home", eyebrow: "YOUR AI WORKSPACE" },
+    overview: { title: "Overview", eyebrow: "YOUR SAI WORKSPACE" },
     workspaces: { title: "Workspaces", eyebrow: "DEVELOPMENT ENVIRONMENTS" },
-    repositories: { title: "Repositories", eyebrow: "CONNECTED PROJECTS" },
+    repositories: { title: "Projects", eyebrow: "CONNECTED PROJECTS" },
+    automations: { title: "Automations", eyebrow: "REPEATABLE PROJECT WORK" },
+    insights: { title: "Insights", eyebrow: "YOUR WORKSPACE ACTIVITY" },
+    sessions: { title: "Sessions", eyebrow: "YOUR AGENT WORK" },
+    session: { title: "Session", eyebrow: "SESSION DRAFT" },
     organizations: { title: "Organizations", eyebrow: "TEAMS & ACCESS" },
     ai: { title: "AI Studio", eyebrow: "YOUR OPENROUTER MODELS" },
     settings: { title: "Settings", eyebrow: "YOUR PREFERENCES" },
@@ -87,10 +107,19 @@ const navGroups: {
     {
         label: "WORKSPACE",
         items: [
-            { title: "Overview", href: "/", page: "overview", icon: LayoutDashboard },
+            { title: "Home", href: "/", page: "home", icon: LayoutDashboard },
+            { title: "Projects", href: "/repositories", page: "repositories", icon: FolderGit2 },
+            { title: "Automations", href: "/automations", page: "automations", icon: Zap },
+            { title: "Insights", href: "/insights", page: "insights", icon: Activity },
+            { title: "Sessions", href: "/sessions", page: "sessions", icon: Clock3 },
+        ],
+    },
+    {
+        label: "BUILD",
+        items: [
             { title: "Workspaces", href: "/workspaces", page: "workspaces", icon: Terminal },
-            { title: "Repositories", href: "/repositories", page: "repositories", icon: FolderGit2 },
             { title: "AI Studio", href: "/ai", page: "ai", icon: Sparkles },
+            { title: "Platform overview", href: "/overview", page: "overview", icon: LayoutDashboard },
         ],
     },
     {
@@ -103,12 +132,17 @@ const navGroups: {
 ];
 
 function pageFromPath(pathname: string): PageKey {
+    if (pathname.startsWith("/sessions/")) return "session";
+    if (pathname.startsWith("/sessions")) return "sessions";
+    if (pathname.startsWith("/automations")) return "automations";
+    if (pathname.startsWith("/insights")) return "insights";
+    if (pathname.startsWith("/overview")) return "overview";
     if (pathname.startsWith("/workspaces")) return "workspaces";
-    if (pathname.startsWith("/repositories")) return "repositories";
+    if (pathname.startsWith("/repositories") || pathname.startsWith("/projects")) return "repositories";
     if (pathname.startsWith("/organizations")) return "organizations";
     if (pathname.startsWith("/ai")) return "ai";
     if (pathname.startsWith("/settings")) return "settings";
-    return "overview";
+    return "home";
 }
 
 function formatRelativeDate(date: string): string {
@@ -155,7 +189,7 @@ function OverviewPage({
                     <h1>
                         Good to have you back, <span>Spacze.</span>
                     </h1>
-                    <p className="page-subtitle">Pick up where you left off, or spin up a fresh environment.</p>
+                    <p className="page-subtitle">Pick up where you left off, or create a workspace record.</p>
                 </div>
                 <button className="button button-primary" onClick={onCreateWorkspace}>
                     <Plus size={17} strokeWidth={2.3} /> New workspace
@@ -168,7 +202,7 @@ function OverviewPage({
                         <span>
                             <Sparkles size={13} />
                         </span>{" "}
-                        YOUR PERSONAL CLOUD
+                        YOUR BUILD WORKSPACE
                     </div>
                     <h2>
                         Good ideas need
@@ -176,8 +210,8 @@ function OverviewPage({
                         room to <em>build.</em>
                     </h2>
                     <p>
-                        Your tools, your code, your pace. Start a cloud workspace in seconds and get straight to the
-                        work.
+                        Keep project details, workspace records, and AI setup in one place. Cloud machines and agent
+                        execution are the next layer to connect.
                     </p>
                     <button className="button button-hero" onClick={onCreateWorkspace}>
                         Create a workspace <ArrowRight size={16} />
@@ -189,39 +223,39 @@ function OverviewPage({
                     <div className="hero-orbit orbit-three" />
                     <div className="hero-core">
                         <div className="hero-mark">S</div>
-                        <span>SAI CLOUD</span>
+                        <span>SAI WORKSPACE</span>
                     </div>
                     <div className="hero-float float-code">
                         <Code2 size={17} />
-                        <span>Code ready</span>
+                        <span>Project linked</span>
                         <i />
                     </div>
                     <div className="hero-float float-secure">
                         <ShieldCheck size={17} />
-                        <span>Your space</span>
+                        <span>Your setup</span>
                     </div>
                     <div className="hero-spark spark-a">✦</div>
                     <div className="hero-spark spark-b">✧</div>
                 </div>
                 <div className="hero-caption">
-                    <span className="hero-caption-dot" /> Private by design <span className="caption-divider" /> Built
-                    for your flow
+                    <span className="hero-caption-dot" /> Project records <span className="caption-divider" /> Built for
+                    your flow
                 </div>
             </section>
 
             <section className="metric-grid" aria-label="Workspace summary">
                 <MetricCard
                     icon={<Activity size={17} />}
-                    label="Running now"
+                    label="Marked active"
                     value={`${running}`}
-                    detail={`${state.workspaces.length} total environments`}
+                    detail={`of ${state.workspaces.length} saved workspaces`}
                     accent="mint"
                 />
                 <MetricCard
                     icon={<FolderGit2 size={17} />}
                     label="Repositories"
                     value={`${state.repositories.length}`}
-                    detail="Ready to launch from"
+                    detail="Available to select"
                     accent="violet"
                 />
                 <MetricCard
@@ -237,8 +271,8 @@ function OverviewPage({
                 <section className="panel recent-panel">
                     <div className="section-heading">
                         <div>
-                            <h2>Recent workspaces</h2>
-                            <p>Your development environments, all in one place.</p>
+                            <h2>Recent workspace records</h2>
+                            <p>Saved setup details for your connected projects.</p>
                         </div>
                         <button className="text-button" onClick={() => onNavigate("workspaces")}>
                             View all <ArrowRight size={15} />
@@ -258,7 +292,7 @@ function OverviewPage({
                                 title={state.workspaces.length === 0 ? "A clean slate." : "No workspaces found."}
                                 body={
                                     state.workspaces.length === 0
-                                        ? "Create your first cloud workspace and start building."
+                                        ? "Create a workspace record to save your project, branch, and machine preference."
                                         : "Try searching for a different project or branch."
                                 }
                                 action={state.workspaces.length === 0 ? "New workspace" : undefined}
@@ -277,9 +311,9 @@ function OverviewPage({
                         <h2>
                             Bring a project
                             <br />
-                            to the cloud.
+                            to SAI.
                         </h2>
-                        <p>Connect a Git repository to create a ready-to-code workspace.</p>
+                        <p>Connect a Git URL to save project details and prepare a workspace record.</p>
                         <button className="text-button" onClick={onCreateWorkspace}>
                             Start with a repository <ArrowRight size={15} />
                         </button>
@@ -294,8 +328,8 @@ function OverviewPage({
                             <Clock3 size={17} />
                         </div>
                         <div>
-                            <strong>Always in sync</strong>
-                            <p>Your projects and preferences stay saved in this browser.</p>
+                            <strong>Saved by SAI</strong>
+                            <p>Platform data uses browser storage or your optional Supabase project.</p>
                         </div>
                     </section>
                 </aside>
@@ -355,7 +389,7 @@ function WorkspacePage({
             <PageHeading
                 eyebrow={pageDetails.workspaces.eyebrow}
                 title="Your workspaces"
-                subtitle="Start coding in a secure, ready-to-go cloud environment."
+                subtitle="Review saved workspace settings. Cloud machines and code execution are not connected yet."
                 action={
                     <button className="button button-primary" onClick={onCreate}>
                         <Plus size={17} /> New workspace
@@ -382,7 +416,7 @@ function WorkspacePage({
                         ))}
                     </div>
                     <div className="list-count">
-                        {visible.length} environment{visible.length === 1 ? "" : "s"}
+                        {visible.length} workspace record{visible.length === 1 ? "" : "s"}
                     </div>
                 </div>
                 <div className="workspace-list">
@@ -400,7 +434,7 @@ function WorkspacePage({
                             body={
                                 query
                                     ? "Try another search or clear your filters."
-                                    : "Create a workspace from one of your repositories to get started."
+                                    : "Save a workspace record from one of your projects to get started."
                             }
                             action={query ? undefined : "Create workspace"}
                             onClick={query ? undefined : onCreate}
@@ -409,8 +443,8 @@ function WorkspacePage({
                 </div>
             </section>
             <div className="notice-strip">
-                <ShieldCheck size={16} />
-                <span>Your workspace list is private to your SAI account.</span>
+                <Activity size={16} />
+                <span>Status changes update saved metadata only; no cloud compute is running yet.</span>
                 <button onClick={onSettings}>
                     Manage preferences <ArrowUpRight size={14} />
                 </button>
@@ -440,7 +474,7 @@ function WorkspaceRow({
                     <h3>{workspace.name}</h3>
                     <span className={`status-pill ${running ? "running" : "stopped"}`}>
                         <i />
-                        {running ? "Running" : "Stopped"}
+                        {running ? "Marked active" : "Marked stopped"}
                     </span>
                 </div>
                 <div className="workspace-meta">
@@ -467,15 +501,15 @@ function WorkspaceRow({
                 <button
                     className={`button ${running ? "button-soft" : "button-run"}`}
                     onClick={() => onToggle(workspace)}
-                    aria-label={running ? `Stop ${workspace.name}` : `Start ${workspace.name}`}
+                    aria-label={running ? `Mark ${workspace.name} stopped` : `Mark ${workspace.name} active`}
                 >
                     {running ? (
                         <>
-                            <Square size={13} fill="currentColor" /> Stop
+                            <Square size={13} fill="currentColor" /> Mark stopped
                         </>
                     ) : (
                         <>
-                            <Play size={14} fill="currentColor" /> Start
+                            <Play size={14} fill="currentColor" /> Mark active
                         </>
                     )}
                 </button>
@@ -527,8 +561,8 @@ function RepositoryPage({
         <>
             <PageHeading
                 eyebrow={pageDetails.repositories.eyebrow}
-                title="Your repositories"
-                subtitle="Keep your code connected and launch a workspace whenever inspiration hits."
+                title="Your projects"
+                subtitle="Save Git repository details as project sources for workspace records and agent-session drafts."
                 action={
                     <button className="button button-primary" onClick={onAdd}>
                         <Plus size={17} /> Add repository
@@ -582,7 +616,7 @@ function RepositoryPage({
                     <div className="panel empty-repos">
                         <EmptyState
                             title={query ? "No repositories found." : "Connect your first repository."}
-                            body="Add a Git URL to keep a project ready for your next workspace."
+                            body="Connect a Git URL and keep project details available for a new session."
                             action={query ? undefined : "Add repository"}
                             onClick={query ? undefined : onAdd}
                         />
@@ -615,7 +649,7 @@ function OrganizationPage({
             <PageHeading
                 eyebrow={pageDetails.organizations.eyebrow}
                 title="Your organizations"
-                subtitle="Switch between your personal space and the teams you build with."
+                subtitle="Group your project records. Shared team membership is not connected yet."
                 action={
                     <button className="button button-primary" onClick={onCreate}>
                         <Plus size={17} /> New organization
@@ -638,7 +672,7 @@ function OrganizationPage({
                                 )}
                             </div>
                             <h2>{organization.name}</h2>
-                            <p className="org-slug">sai.cloud/{organization.slug}</p>
+                            <p className="org-slug">slug: {organization.slug}</p>
                             <div className="org-stats">
                                 <span>
                                     <Users size={15} />
@@ -671,7 +705,7 @@ function OrganizationPage({
             </section>
             <div className="notice-strip">
                 <Users size={16} />
-                <span>Organizations help keep repositories and workspaces organized as your team grows.</span>
+                <span>Organizations are personal groupings for now; collaborators cannot access these records.</span>
             </div>
         </>
     );
@@ -1218,7 +1252,7 @@ function SettingsPage({
                             </div>
                             <div>
                                 <h2>Default editor</h2>
-                                <p>Open new environments in your preferred editor.</p>
+                                <p>Save your preferred editor for future workspace records.</p>
                             </div>
                         </div>
                         <div className="choice-grid editor-choices">
@@ -1253,7 +1287,7 @@ function SettingsPage({
                             </div>
                             <div>
                                 <h2>Default machine</h2>
-                                <p>Choose a starting size for new workspaces.</p>
+                                <p>Save a machine-size preference for future workspace records.</p>
                             </div>
                         </div>
                         <div className="machine-options">
@@ -1390,7 +1424,7 @@ function ModalFrame({
             <section className="modal-card" role="dialog" aria-modal="true" aria-labelledby="modal-title">
                 <div className="modal-header">
                     <div>
-                        <div className="modal-kicker">SAI CLOUD</div>
+                            <div className="modal-kicker">SAI WORKSPACE</div>
                         <h2 id="modal-title">{title}</h2>
                         <p>{description}</p>
                     </div>
@@ -1431,7 +1465,7 @@ function CreateWorkspaceModal({
     return (
         <ModalFrame
             title="Create a workspace"
-            description="Choose a repository and we'll prepare a fresh environment."
+            description="Save a workspace configuration for this project. Cloud compute is not connected yet."
             onClose={onClose}
         >
             <form className="modal-form" onSubmit={submit}>
@@ -1463,7 +1497,7 @@ function CreateWorkspaceModal({
                     </label>
                 </div>
                 <label>
-                    Machine size
+                    Preferred machine size
                     <select value={machine} onChange={(event) => setMachine(event.target.value)}>
                         <option>Standard · 4 vCPU</option>
                         <option>Performance · 8 vCPU</option>
@@ -1473,10 +1507,10 @@ function CreateWorkspaceModal({
                 {error && <p className="form-error">{error}</p>}
                 <div className="modal-footer">
                     <span>
-                        <ShieldCheck size={14} /> Starts in your personal cloud
+                        <ShieldCheck size={14} /> Saved as SAI platform metadata
                     </span>
                     <button className="button button-primary" type="submit">
-                        <Play size={14} fill="currentColor" /> Create workspace
+                        <Plus size={14} /> Save workspace record
                     </button>
                 </div>
             </form>
@@ -1507,7 +1541,7 @@ function CreateRepositoryModal({
     return (
         <ModalFrame
             title="Add a repository"
-            description="Connect a project so it's ready when you need it."
+            description="Save project metadata for a workspace record or agent-session draft."
             onClose={onClose}
         >
             <form className="modal-form" onSubmit={submit}>
@@ -1571,7 +1605,7 @@ function CreateOrganizationModal({ onClose, onCreate }: { onClose: () => void; o
     return (
         <ModalFrame
             title="Create an organization"
-            description="A shared home for your team's cloud projects."
+            description="Create a personal grouping for related SAI project records."
             onClose={onClose}
         >
             <form className="modal-form" onSubmit={submit}>
@@ -1587,7 +1621,7 @@ function CreateOrganizationModal({ onClose, onCreate }: { onClose: () => void; o
                 </label>
                 <div className="org-create-note">
                     <Users size={16} />
-                    <span>You'll be the owner. You can invite teammates when your team is ready.</span>
+                    <span>Shared membership and invitations are not connected yet.</span>
                 </div>
                 <div className="modal-footer">
                     <span>
@@ -1607,6 +1641,7 @@ function SaiPlatform() {
     const location = useLocation();
     const page = pageFromPath(location.pathname);
     const [platform, setPlatform] = useState<PlatformState>();
+    const [sessions, setSessions] = useState<AgentSession[]>(() => readAgentSessions());
     const [loadError, setLoadError] = useState("");
     const [loadAttempts, setLoadAttempts] = useState(0);
     const [dialog, setDialog] = useState<DialogKind>(null);
@@ -1624,6 +1659,8 @@ function SaiPlatform() {
         () => platform?.organizations.find((organization) => organization.id === platform.activeOrganizationId),
         [platform],
     );
+    const currentSessionId = page === "session" ? location.pathname.slice("/sessions/".length) : "";
+    const currentSession = sessions.find((session) => session.id === currentSessionId);
 
     useEffect(() => {
         document.title = "SAI — Cloud Dev Platform";
@@ -1644,6 +1681,10 @@ function SaiPlatform() {
             mounted = false;
         };
     }, [loadAttempts]);
+
+    useEffect(() => {
+        saveAgentSessions(sessions);
+    }, [sessions]);
 
     useEffect(() => {
         if (!toast) return;
@@ -1732,11 +1773,28 @@ function SaiPlatform() {
         setQuery("");
     };
 
+    const openSession = (sessionId: string) => {
+        history.push(`/sessions/${encodeURIComponent(sessionId)}`);
+        setMobileNavOpen(false);
+        setQuery("");
+    };
+
+    const createSession = (draft: AgentSessionDraft) => {
+        const session = createAgentSession(draft);
+        setSessions((current) => [session, ...current]);
+        history.push(`/sessions/${encodeURIComponent(session.id)}`);
+        setMobileNavOpen(false);
+        setQuery("");
+        setToast("Session draft saved in this browser.");
+    };
+
     const toggleWorkspace = (workspace: WorkspaceRecord) => {
         const status = workspace.status === "running" ? "stopped" : "running";
         void mutate(
             () => setWorkspaceStatus(workspace.id, status),
-            status === "running" ? `${workspace.name} is ready to go.` : `${workspace.name} stopped.`,
+            status === "running"
+                ? `${workspace.name} marked active in SAI; no compute was started.`
+                : `${workspace.name} marked stopped in SAI.`,
         );
     };
 
@@ -1763,7 +1821,7 @@ function SaiPlatform() {
     const submitWorkspace = (input: { name?: string; repository: string; branch?: string; machine?: string }) => {
         setDialog(null);
         setWorkspaceRepository(undefined);
-        void mutate(() => createWorkspace(input), "Your workspace is ready.");
+        void mutate(() => createWorkspace(input), "Workspace settings saved in SAI.");
         history.push("/workspaces");
     };
 
@@ -1864,13 +1922,19 @@ function SaiPlatform() {
                                 return (
                                     <button
                                         key={item.page}
-                                        className={`nav-item ${page === item.page ? "active" : ""}`}
+                                        className={`nav-item ${page === item.page || (item.page === "sessions" && page === "session") ? "active" : ""}`}
                                         onClick={() => navigate(item.page)}
                                     >
                                         <Icon size={17} strokeWidth={1.8} />
                                         <span>{item.title}</span>
-                                        {item.page === "workspaces" && (
-                                            <span className="nav-count">{platform.workspaces.length}</span>
+                                        {(item.page === "repositories" || item.page === "sessions" || item.page === "workspaces") && (
+                                            <span className="nav-count">
+                                                {item.page === "repositories"
+                                                    ? platform.repositories.length
+                                                    : item.page === "sessions"
+                                                    ? sessions.length
+                                                    : platform.workspaces.length}
+                                            </span>
                                         )}
                                     </button>
                                 );
@@ -1978,6 +2042,34 @@ function SaiPlatform() {
                     </div>
                 </header>
                 <div className="sai-content" key={page}>
+                    {page === "home" && (
+                        <AgentHome
+                            repositories={platform.repositories}
+                            sessions={sessions}
+                            defaultMachine={platform.settings.machine}
+                            onCreateSession={createSession}
+                            onOpenSession={openSession}
+                            onOpenProjects={() => navigate("repositories")}
+                            onOpenAiStudio={() => navigate("ai")}
+                        />
+                    )}
+                    {page === "sessions" && (
+                        <AgentSessionsPage
+                            sessions={sessions}
+                            onOpenSession={openSession}
+                            onNewSession={() => navigate("home")}
+                        />
+                    )}
+                    {page === "session" && (
+                        <AgentSessionPage
+                            session={currentSession}
+                            onNewSession={() => navigate("home")}
+                            onOpenAiStudio={() => navigate("ai")}
+                            onBackToSessions={() => navigate("sessions")}
+                        />
+                    )}
+                    {page === "automations" && <AgentAutomationsPage onNewSession={() => navigate("home")} />}
+                    {page === "insights" && <AgentInsightsPage state={platform} sessions={sessions} />}
                     {page === "overview" && (
                         <OverviewPage
                             state={platform}
@@ -2050,7 +2142,7 @@ function SaiPlatform() {
                     )}
                     <footer className="page-footer">
                         <span>SAI Cloud Dev Platform</span>
-                        <span>Personal cloud, built around you.</span>
+                        <span>Projects and session drafts, in one place.</span>
                         <span className="footer-version">
                             {isSupabaseConfigured ? "SUPABASE · REMOTE STORAGE" : "DEMO · LOCAL STORAGE"}
                         </span>
