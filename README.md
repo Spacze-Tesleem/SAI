@@ -1,21 +1,40 @@
-**[Gitpod has been renamed to Ona](https://ona.com/stories/gitpod-is-now-ona) - mission control for software projects and software engineering agents**. We no longer recommend this version of Gitpod; users should take advantage of Ona's [free tier](https://app.gitpod.io/) or [contact sales for enterprise](https://ona.com/enterprise). With Ona you gain more powerful development environments than Gitpod Classic with industry-standard specifications based on Dev Container and Ona Agents.
+# SAI — Cloud Development & AI Agent Workspace
 
-![Ona Banner](https://github.com/user-attachments/assets/68f8c148-07da-4831-a6f6-ff4d1f1ec321)
+SAI is an independent product for creating project workspaces and preparing coding-agent tasks. The product UI is built in [`components/dashboard/src/sai/`](components/dashboard/src/sai/). It takes inspiration from cloud IDE and coding-agent workflows, but SAI owns its application and does not send users to a hosted third-party workspace.
 
-## Gitpod Classic
+## Current experience
 
-Gitpod Classic is a developer platform providing on-demand, pre-configured development environments in the cloud. It allows developers to spin up secure workspaces with a simple `.gitpod.yml` configuration file, eliminating the need for manual environment setup. The platform integrates with GitHub, GitLab, Bitbucket, and Azure DevOps, offering prebuilt environments, collaborative code reviews, and a browser-based VS Code experience.
+- **Home:** create an agent-session draft with a task prompt, project/repository, branch, model, Agent or Plan mode, and a compute-size preference.
+- **Projects and workspaces:** manage repository metadata and local workspace records in the existing dashboard.
+- **Sessions:** review drafts saved in this browser under `sai.agent-sessions.v1`.
+- **AI Studio:** connect an OpenRouter key for direct model chat and embeddings. The key remains in browser memory for the current tab.
+- **Settings and organizations:** configure appearance and default editor/machine preferences; optional Supabase persistence is documented in [`components/dashboard/README.md`](components/dashboard/README.md).
 
-> **Important:** [Gitpod Classic pay-as-you-go sunset on October 15, 2025](https://ona.com/stories/gitpod-classic-payg-sunset). See Ona's blog for detailed instructions.
+**Prototype boundary:** session submission currently saves a draft; it does not clone a repository, provision a cloud machine, or run an AI coding agent. Workspace lifecycle actions are also local platform records, not real compute. A production agent runtime, secure repository authorization, and cloud provisioning service still need to be designed and connected.
 
-Gitpod-capable builds retain the original Gitpod dashboard entrypoint. The static Vercel deployment hands dashboard routes to Ona's hosted AI dashboard at `app.gitpod.io/ai`, because Vercel does not provide Gitpod's platform API or WebSocket services. The separate SAI prototype and its Supabase/OpenRouter setup are documented in [`components/dashboard/README.md`](components/dashboard/README.md).
+## Development
 
-## Documentation
+Install the repository dependencies using its Yarn workspace setup, then run SAI from a Gitpod-capable development environment with the `gp` CLI available:
 
-Gitpod documentation is available at [www.gitpod.io/docs](https://www.gitpod.io/docs), including the [Gitpod tutorial](https://www.gitpod.io/docs/introduction/gitpod-tutorial), workspace lifecycle, repository configuration, organizations, editors, and [Gitpod samples](https://github.com/gitpod-samples).
+```sh
+REACT_APP_SAI_STATIC_MODE=true yarn --cwd components/dashboard start
+```
 
-## Related projects
+For the standalone SAI build used by the static deployment:
 
-- [Workspace images](https://github.com/gitpod-io/workspace-images): Ready-to-use Docker images for Gitpod workspaces.
-- [OpenVSCode Server](https://github.com/gitpod-io/openvscode-server): Run VS Code in a browser.
-- [Gitpod browser extension](https://github.com/gitpod-io/browser-extension): Add a Gitpod button to Git hosting providers.
+```sh
+REACT_APP_SAI_STATIC_MODE=true yarn --cwd components/dashboard build
+```
+
+Vercel runs [`components/dashboard/scripts/build-vercel.sh`](components/dashboard/scripts/build-vercel.sh). Dashboard routing is configured in [`components/dashboard/vercel.json`](components/dashboard/vercel.json).
+
+Run the dashboard unit tests with:
+
+```sh
+yarn --cwd components/dashboard test:unit --runInBand
+```
+
+## More information
+
+- [Dashboard setup, Supabase persistence, and OpenRouter configuration](components/dashboard/README.md)
+- [SAI dashboard source](components/dashboard/src/sai/)

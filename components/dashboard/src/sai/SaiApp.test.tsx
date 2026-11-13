@@ -4,7 +4,7 @@
  * See License.AGPL.txt in the project root for license information.
  */
 
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import SaiApp from "./SaiApp";
 
 jest.mock("lucide-react", () => {
@@ -83,10 +83,60 @@ async function connectOpenRouter() {
     await screen.findByText("Key verified");
 }
 
+describe("SAI agent workspace", () => {
+    it("creates a local session draft and opens it from Sessions", async () => {
+        render(<SaiApp />);
+        await screen.findByRole("heading", { name: "What do you want to build today?" });
+        await screen.findByRole("option", { name: "SAI" });
+
+        const prompt = "Add a focused unit test for the workspace filter.";
+        fireEvent.change(screen.getByRole("combobox", { name: "Project" }), {
+            target: { value: "repo-portfolio" },
+        });
+        fireEvent.change(screen.getByRole("textbox", { name: "Branch" }), {
+            target: { value: "feature/session-ui" },
+        });
+        fireEvent.change(screen.getByRole("combobox", { name: "Model" }), {
+            target: { value: "perplexity/pplx-decider-flash-v1.3:free" },
+        });
+        fireEvent.change(screen.getByRole("combobox", { name: "Session mode" }), {
+            target: { value: "Plan" },
+        });
+        fireEvent.change(screen.getByRole("combobox", { name: "Compute size" }), {
+            target: { value: "Performance · 8 vCPU" },
+        });
+        fireEvent.change(screen.getByRole("textbox", { name: "Describe a task for SAI" }), {
+            target: { value: prompt },
+        });
+        fireEvent.click(screen.getByRole("button", { name: "Start session" }));
+
+        await screen.findByText("SESSION DRAFT · SAVED LOCALLY");
+        expect(screen.getByRole("heading", { name: prompt })).toBeInTheDocument();
+        expect(screen.getByText("This draft is ready for an agent runtime.")).toBeInTheDocument();
+        await waitFor(() =>
+            expect(JSON.parse(window.localStorage.getItem("sai.agent-sessions.v1") || "[]")).toHaveLength(1),
+        );
+        const saved = JSON.parse(window.localStorage.getItem("sai.agent-sessions.v1") || "[]");
+        expect(saved[0]).toMatchObject({
+            prompt,
+            repositoryName: "portfolio",
+            branch: "feature/session-ui",
+            modelId: "perplexity/pplx-decider-flash-v1.3:free",
+            mode: "Plan",
+            machine: "Performance · 8 vCPU",
+        });
+        expect(mockFetch).not.toHaveBeenCalled();
+
+        fireEvent.click(screen.getByRole("button", { name: /Sessions/ }));
+        await screen.findByRole("heading", { name: "Sessions" });
+        expect(screen.getByText(prompt)).toBeInTheDocument();
+    });
+});
+
 describe("SAI AI Studio", () => {
     it("verifies a key, sends chat to OpenRouter, and keeps the key out of local storage", async () => {
         render(<SaiApp />);
-        await screen.findByText("Pick up where you left off, or spin up a fresh environment.");
+        await screen.findByRole("heading", { name: "What do you want to build today?" });
         fireEvent.click(screen.getByRole("button", { name: "AI Studio" }));
         await screen.findByRole("heading", { name: "AI Studio" });
         await connectOpenRouter();
@@ -103,7 +153,7 @@ describe("SAI AI Studio", () => {
 
     it("runs the selected NVIDIA embeddings model against the embeddings endpoint", async () => {
         render(<SaiApp />);
-        await screen.findByText("Pick up where you left off, or spin up a fresh environment.");
+        await screen.findByRole("heading", { name: "What do you want to build today?" });
         fireEvent.click(screen.getByRole("button", { name: "AI Studio" }));
         await screen.findByRole("heading", { name: "AI Studio" });
         await connectOpenRouter();

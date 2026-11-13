@@ -1,26 +1,17 @@
 {
-  "short_name": "Gitpod",
-  "name": "Gitpod Dashboard - Now Ona",
-  "description": "Gitpod Classic Dashboard. Gitpod is now Ona - AI software engineers for your team at ona.com",
+  "short_name": "SAI",
+  "name": "SAI Cloud Dev Platform",
+  "description": "An independent cloud development and AI-agent workspace.",
   "icons": [
     {
-      "src": "favicon256.png",
-      "sizes": "256x256 64x64 32x32 24x24 16x16",
-      "type": "image/x-icon"
-    },
-    {
-      "src": "favicon192.png",
-      "type": "image/png",
-      "sizes": "192x192"
-    },
-    {
-      "src": "favicon512.png",
-      "type": "image/png",
-      "sizes": "512x512"
+      "src": "sai-icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
     }
   ],
   "start_url": ".",
   "display": "standalone",
-  "theme_color": "#000000",
-  "background_color": "#ffffff"
+  "theme_color": "#111d31",
+  "background_color": "#f5f7fa"
 }
